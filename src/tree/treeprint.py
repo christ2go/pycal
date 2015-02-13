@@ -17,23 +17,25 @@ class treeprinter:
         self.recprint(self.tree)
     def writeattr(self,node):
         for key in node.attr:
-            write(" "+key+"="+str(node.attr[key]))
+            write(" "+key+"='"+str(node.attr[key])+"'")
             
     def recprint(self,node,ident=0):
-        write("   "*ident)
-        write("<")
-        write(node.name.replace(" ","_"))
-        write("")
-        self.writeattr(node)
-        if len(node.children) != 0:
-            write(">")
-            write("\n")
-            
-            for item in node.children:
-                self.recprint(item,ident+1)
-           # write("\n")
-            write("   "*ident)
-            write("</"+node.name.replace(" ","_")+">")
-            write("\n")
-        else:
-            write(" />"+"\n")
+        if node != None:
+            delim = "\t"
+            write(delim*ident)
+            write("<")
+            write(node.name.replace(" ","_"))
+            write("")
+            self.writeattr(node)
+            if len(node.children) != 0:
+                write(">")
+                write("\n")
+                
+                for item in node.children:
+                    self.recprint(item,ident+1)
+               # write("\n")
+                write(delim*ident)
+                write("</"+node.name.replace(" ","_")+">")
+                write("\n")
+            else:
+                write(" />"+"\n")

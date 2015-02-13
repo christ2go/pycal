@@ -31,7 +31,8 @@ class Scanner:
         ct = token.token()
         if self.character == "EOF":
             self.eofp = True
-            return 0
+            ct.construct("EOF",self.line,self.char,"EOF")
+            return ct
         if self.character == "+":
             # construct the token
             self.character = self.get()
@@ -50,6 +51,8 @@ class Scanner:
             self.character = self.get()
             if self.character == "=":
                 ct.construct("COLON_EQUALS",self.line,self.char,":=")
+                self.character = self.get()
+                return ct
             ct.construct("COLON",self.line,self.char,":")
             return ct
         if self.character == ".":
@@ -153,7 +156,7 @@ class Scanner:
                 self.character = self.get()
             # check if identifier is a reserved word #
             
-            ct.construct("IDENT",self.line,self.char,ident)
+            ct.construct("IDENT",self.line,self.char,ident,ident)
             if ident.lower() in  [x.lower() for x in ["AND","ARRAY","BEGIN","CASE","CONST","DIV","DO","DOWNTO","ELSE","END","FILE","FOR","FUNCTION","GOTO","IF","IN","LABEL","MOD","NIL","NOT","OF","OR","PACKED","PROCEDURE","PROGRAM","RECORD","REPEAT","SET","THEN","TO","TYPE","UNTIL","VAR","WHILE","WITH"] ]:
                 ct.construct(ident.upper(),self.line,self.char,ident)
             return ct
@@ -165,9 +168,9 @@ class Scanner:
                 digit += self.character
                 self.character = self.get()
             if '.' in digit:
-                ct.construct("FPOINT",self.line,self.char,digit)
+                ct.construct("REAL",self.line,self.char,digit,digit)
                 return ct
-            ct.construct("INT",self.line,self.char,digit)
+            ct.construct("INT",self.line,self.char,digit,digit)
             return ct
         self.mark("Unknown token %c"%(self.character))
     def mark(self,err,warninglevel=2):
