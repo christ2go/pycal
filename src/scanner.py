@@ -19,6 +19,11 @@ class Scanner:
         self.file = open(fname,"r")
         self.character = self.get()
     def gettoken(self):
+        self.token = self.gettoken_intern()
+        return self.token
+    def getCurrent(self):
+        return self.token
+    def gettoken_intern(self):
         ''' @returns next token '''
         while iswhitespace(self.character):
             self.character = self.get()
@@ -155,9 +160,14 @@ class Scanner:
         if self.character == "%":
             pass # BINARY NUMBER #
         if isnum(self.character):
-            digit = self.character
-            self.character = self.get()
-            ct.construct("NUMBER",self.line,self.char,digit)
+            digit = ""
+            while isnum(self.character) or self.character == ".":
+                digit += self.character
+                self.character = self.get()
+            if '.' in digit:
+                ct.construct("FPOINT",self.line,self.char,digit)
+                return ct
+            ct.construct("INT",self.line,self.char,digit)
             return ct
         self.mark("Unknown token %c"%(self.character))
     def mark(self,err,warninglevel=2):
@@ -190,12 +200,4 @@ class Scanner:
         ch = self.get()
         while ch != "}":
             ch = self.get()
-test = Scanner()
-
-test.scan("examples/NEWTON.PAS")
-while not test.eofp:
-    x = test.gettoken()
-    if x != None: print(x);
-    else: 
-        break    
 
