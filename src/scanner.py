@@ -7,6 +7,8 @@ def isnum(d):
     return d in ["1","2","3","4","5","6","7","8","9","0"]
 # Implements a scanner
 # Returns the next token
+
+# ISSUE Scanner error with <=
 class Scanner:
     def __init__(self):
         print("Scanning source file")
@@ -176,6 +178,7 @@ class Scanner:
     def mark(self,err,warninglevel=2):
         if warninglevel == 2:
             print("%s %.3i::%.2i Error: %s"%(self.fname,self.line,self.char,err))
+            raise "Parser Error"
         if warninglevel == 1:
             print("%s %.3i::%.2i Warning: %s"%(self.fname,self.line,self.char,err))
         if warninglevel == 0:

@@ -8,6 +8,14 @@ class parser(object):
         self.scanner = scanner.Scanner()
         self.scanner.scan(fname)
         self.tree = node.node()
+    def printtoken(self):
+        while True:
+            token = self.scanner.gettoken()
+            if token.tokentype != "EOF":
+                print(token)
+            else:
+                return
+            
     def parse(self):
         self.token = self.scanner.gettoken()
         if(self.token.tokentype == "BEGIN"):
@@ -18,16 +26,24 @@ class parser(object):
         if self.token.tokentype != "DOT":
             self.scanner.mark("Exspected DOT got %s"%(self.token.tokentype))
     def parseStatement(self):
+        stmt = None
         if self.token.tokentype == "BEGIN":
             stmt = self.parseCompound()
             return stmt
         elif self.token.tokentype == "IDENT":
             stmt = self.parseAssign()
+        elif self.token.tokentype == "REPEAT":
+            stmt = self.parseRepeatStatement()
+        elif self.token.tokentype == "WHILE":
+            stmt = self.parseWhileStatement()
+        elif self.token.tokentype == "IF":
+            stmt = self.parseIfStatement()
+        elif self.token.tokentype == "CASE":
+            pass
         else:
             stmt = node.node("NO_OP")
         return stmt
     def parseStatementList(self, token, parent, term, err):
-        
         while self.token.tokentype != "EOF" and self.token.tokentype != term:
             statementnode = self.parseStatement()
             parent.appendChild(statementnode)
@@ -35,11 +51,14 @@ class parser(object):
                 self.token = self.scanner.gettoken()
             elif self.token.tokentype == "IDENT":
                 self.scanner.mark("Missing Semicolon")
+            elif self.token.tokentype in ["FOR","WHILE","IF","REPEAT"]:
+                self.scanner.mark("Missing ;")
             elif self.token.tokentype != term:
                 self.scanner.mark("=>Missing Terminator - exspected %s and got %s" % (term, self.token.tokentype))
                 self.token = self.scanner.gettoken()
         if self.token.tokentype == term:
             self.token = self.scanner.gettoken()
+            return
         else:
             self.scanner.mark("Missing Terminator - exspected %s and got %s" % (term, self.token.tokentype))
             
@@ -65,7 +84,6 @@ class parser(object):
     def parseExpression(self):
         rootnode = self.parseSimpleExpression()
         tokentype = self.token.tokentype
-        
         if tokentype in ["EQUALS", "NOT_EQUALS", "LESS_THAN", "LESS_EQUALS", "GREATER_THAN", "GREATER_EQUALS"]:
             if tokentype == "EQUALS":
                 nodetype = "EQ"
@@ -170,9 +188,52 @@ class parser(object):
                 self.scanner.mark("Missing )")
             self.token = self.scanner.gettoken()
         return rootnode
+    def parseRepeatStatement(self):
+        self.token = self.scanner.gettoken()
+        # Consume the REPEAT
+        loopnode = node.node("LOOP")
+        testnode = node.node("TEST")
+        self.parseStatementList(self.token, loopnode, "UNTIL", "Missing until")
+        testnode.appendChild(self.parseExpression())
+        loopnode.appendChild(testnode)
+        return loopnode
+    def parseIfStatement(self):
+        ifNode = node.node("IF")
+        # TODO SYNCHRONIZE
+        self.token = self.scanner.gettoken()
+        ifNode.appendChild(self.parseExpression())
+        if self.token.tokentype == "THEN":
+            self.token = self.scanner.gettoken()
+        else:
+            self.scanner.mark("Missing THEN in IFELSE not %s"%(self.token.text))
+        ifstmt = self.parseStatement()
+        ifNode.appendChild(ifstmt)
+        self.token = self.scanner.gettoken()
+        if self.token.tokentype == "ELSE":
+            self.token = self.scanner.gettoken()
+            ifNode.appendChild(self.parseStatement())
+        return ifNode
+    def parseWhileStatement(self):
+        self.token = self.scanner.gettoken() # Consume the WHILE
+        notnode = node.node("NOT") # Node for test
+        testnode = node.node("TEST")
+        loopnode = node.node("LOOP")
+        notnode.appendChild(self.parseExpression())  # Append <test> to notnode
+        testnode.appendChild(notnode)
+        loopnode.appendChild(testnode)
+        # EXSPECT DO STATEMENT
+        if self.token.tokentype != "DO":
+            self.scanner.mark("Missing DO in WHILE, (not \"%s\")"%(self.token.tokentype))
+        else:
+            self.token = self.scanner.gettoken()
+        loopnode.appendChild(self.parseStatement())
+        return loopnode
+    def CaseStatement(self):
+        pass
+    def ForStatement(self):
+        pass
     
-    
-test = parser("../examples/assignerrors.txt")
+test = parser("../examples/whiletest.PAS")
 test.parse()
 x = treeprint.treeprinter(test.tree)
 x.printt()
