@@ -1,4 +1,5 @@
 import treeprint
+import copy
 def traverse(tree,ident = 1):
     me = treeprint.treeprinter(tree)
     me.printt()
@@ -17,7 +18,7 @@ class node:
         return self.children[-1]
     def appendChild(self,child):
         self.children.append(child)
-    def getchild(self,nr):
+    def getChild(self,nr):
         if len(self.children) < nr:
             return None
         else:
@@ -35,6 +36,8 @@ class node:
         self.attr[name] = val
     def get(self,name):
         return self.attr[name]
+    def copy(self):
+        return copy.deepcopy(self)
     
 """       
 test = node("COMPOUND")

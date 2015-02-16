@@ -3,6 +3,18 @@ import sys
 from tree import treeprint
 sys.path.append("../tree/")
 import node
+
+conststartset = [
+                "COMMA",
+                "COLON",
+                "INT",
+                "FLOAT",
+                "IDENT",
+                "STRING",
+                "MINUS",
+               "PLUS"
+                ]
+
 class parser(object):
     def __init__(self, fname):
         self.scanner = scanner.Scanner()
@@ -34,12 +46,14 @@ class parser(object):
             stmt = self.parseAssign()
         elif self.token.tokentype == "REPEAT":
             stmt = self.parseRepeatStatement()
+        elif self.token.tokentype == "FOR":
+            stmt = self.parseForStatement()
         elif self.token.tokentype == "WHILE":
             stmt = self.parseWhileStatement()
         elif self.token.tokentype == "IF":
             stmt = self.parseIfStatement()
         elif self.token.tokentype == "CASE":
-            pass
+            stmt = self.parseCaseStatement()
         else:
             stmt = node.node("NO_OP")
         return stmt
@@ -228,12 +242,165 @@ class parser(object):
             self.token = self.scanner.gettoken()
         loopnode.appendChild(self.parseStatement())
         return loopnode
-    def CaseStatement(self):
-        pass
-    def ForStatement(self):
-        pass
+    def parseCaseStatement(self):
+        self.token = self.scanner.gettoken()
+        # Create SELECT node
+        selectNode = node.node("SELECT")
+        
+        # Parse CASE <n> of ... 
+        selectNode.appendChild(self.parseExpression())
+        
+        if self.token.tokentype != "OF":
+            self.scanner.mark("Missing OF in Casestatement")
+        else:
+            self.token = self.scanner.gettoken()
+        constantSet = []
+        while self.token.tokentype != "EOF" and self.token.tokentype != "END":
+            selectNode.appendChild(self.parseBranch(constantSet))
+            if  self.token.tokentype in conststartset or self.token.tokentype == "SEMICOLON":
+                if self.token.tokentype == "SEMICOLON":
+                    self.token = self.scanner.gettoken()
+                else:
+                    self.scanner.mark("Missing semicolon (;) in Switch-case branch. "+self.token.text)
+        if self.token.tokentype != "END":
+            self.scanner.mark("Missing END in switch-case statement.")
+        self.token = self.scanner.gettoken()
+        return selectNode
+        return selectNode
+    def parseBranch(self,constantSet):
+        branchNode = node.node("SELECT_BRANCH")
+        constantNode = node.node("SELECT_CONSTANTS")
+        branchNode.appendChild(constantNode)
+        # Parse the list of constants
+        self.parseConstantList(constantNode,constantSet)
+        
+        if self.token.tokentype != "COLON":
+            self.scanner.mark("Missing COLON (:) in switch-case branch.")
+        else:
+            self.token = self.scanner.gettoken()
+            
+        branchNode.appendChild(self.parseStatement())
+        return branchNode
     
-test = parser("../examples/whiletest.PAS")
+    def parseConstantList(self,constantNode,constantSet):
+        loop = False
+        while self.token.tokentype in conststartset or loop == False:
+            loop = True # Emulate do while statement
+            constantNode.appendChild(self.parseConstant(constantSet))
+            self.token = self.scanner.gettoken()
+            
+            if self.token.tokentype == "COMMA":
+                self.token = self.scanner.gettoken()
+            else:
+                if self.token.tokentype != "COLON":
+                    self.scanner.mark("Unexspected Token in switch-case branch. Exspected COLON or COMMA.")
+                else:
+                    return
+    def parseConstant(self,constantSet):
+        sign = None
+        constantNode = None
+        #self.token = self.scanner.gettoken()
+        ld = True
+        if self.token.tokentype in ["PLUS","MINUS"]:
+            sign = self.token.tokentype
+            self.token = self.scanner.gettoken()
+        
+        if self.token.tokentype == "IDENT" and ld:
+            pass # Ident
+            ld = False
+        if self.token.tokentype == "INT" and ld:
+            constantNode = self.parseIntegerConstant(sign)
+            ld = False
+        if self.token.tokentype == "STRING" and ld:
+            constantNode = self.parseCharConstant()
+            ld = False
+        if self.token.tokentype == "FLOAR":
+            pass # Real (FLoating point) value
+        if constantNode == None:
+            self.scanner.mark("Exspected Constant in switch-case Statement,not %s."%(self.token.text))
+        else:
+            if constantNode.get("VALUE") in constantSet:
+                self.scanner.mark("Multiple Cases of exrpession \"%s\""%(constantNode.get("VALUE")))
+            else:
+                constantSet.append(constantNode.get("VALUE"))
+        #self.token = self.scanner.gettoken()
+        return constantNode
+        
+    def parseIntegerConstant(self,sign):
+        val = int(self.token.text)
+        constantnode = node.node("INTEGER_CONSTANT")
+        if sign == "MINUS":
+            val = - val 
+        constantnode.set("VALUE",val)
+        return constantnode
+    def parseIdentConstant(self):
+        self.scanner.mark("Yet not implemented")
+        # TODO Implementation
+    def parseCharConstant(self):
+        if len(self.token.text) != 1:
+            self.scanner.mark("Exspected character constant.")
+        constantNode = node.node("STRING_CONSTANT")
+        constantNode.set("VALUE",self.token.text)
+        return constantNode
+    def parseForStatement(self):
+        # First consume the "FOR"
+        self.token = self.scanner.gettoken()
+        
+        # create the nodes
+        compoundNode = node.node("COMPOUND")
+        loopNode     = node.node("LOOP")
+        testnode     = node.node("TEST")
+        
+        initAssignnode = node.node("ASSIGN")
+        initAssignnode.appendChild(self.parseAssign())
+        
+        # TODO set line number
+        compoundNode.appendChild(initAssignnode)
+        compoundNode.appendChild(loopNode)
+        
+        
+        direction = self.token.tokentype
+        
+        if direction == "TO" or direction == "DOWNTO":
+            self.token = self.scanner.gettoken()
+        else:
+            self.scanner.mark("Missing (down)to in for-statement %s ."%(self.token.text))
+        relOpNode = node.node('GT' if direction == "TO" else "LT")
+        # Relational operator operator initialized (for comparison)
+        controlVarNode = initAssignnode.getChild(0)
+        relOpNode.appendChild(controlVarNode.copy())
+        # Parse the to <expr>
+        relOpNode.appendChild(self.parseExpression())
+        testnode.appendChild(relOpNode)
+        loopNode.appendChild(testnode)
+        
+        #self.token = self.scanner.gettoken()
+        
+        if self.token.tokentype != "DO":
+            self.scanner.mark("Missing do in for-statement.")
+        else:
+            self.token = self.scanner.gettoken()
+        loopNode.appendChild(self.parseStatement())
+        
+        # Last add the x := x+1 or x := x - 1
+        nextAssignNode = node.node("ASSIGN")
+        nextAssignNode.appendChild(controlVarNode.copy())
+        
+        arithOp = "ADD" if direction == "TO" else "SUBTRACT"
+        arithOpNode = node.node(arithOp)
+        arithOpNode.appendChild(controlVarNode.copy())
+        oneNode = node.node("INTEGER CONSTANT")
+        oneNode.set("VALUE",1)
+        arithOpNode.appendChild(oneNode)
+        
+        nextAssignNode.appendChild(arithOpNode)
+        loopNode.appendChild(nextAssignNode)
+        # Linenumber
+        
+        return compoundNode
+        
+    
+test = parser("../examples/case.txt")
 test.parse()
 x = treeprint.treeprinter(test.tree)
 x.printt()

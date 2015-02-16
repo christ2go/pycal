@@ -10,6 +10,10 @@ def isnum(d):
 
 # ISSUE Scanner error with <=
 class Scanner:
+    def getline(self,nr):
+        f = open(self.fname,"r")
+        lines = f.readlines()
+        return lines[nr-1]
     def __init__(self):
         print("Scanning source file")
         self.char = 0
@@ -28,6 +32,9 @@ class Scanner:
     def gettoken_intern(self):
         ''' @returns next token '''
         while iswhitespace(self.character):
+            if self.character == "\t":
+                self.tabs += 1
+                self.char += 4
             self.character = self.get()
         # Skipped whitespaces
         ct = token.token()
@@ -177,7 +184,14 @@ class Scanner:
         self.mark("Unknown token %c"%(self.character))
     def mark(self,err,warninglevel=2):
         if warninglevel == 2:
+            print(self.getline(self.line))
+            for x in range(0,self.char):
+                print(" ",end="")
+            for x in range(0,self.tabs):
+                print("    ",end="")
+            print("^")
             print("%s %.3i::%.2i Error: %s"%(self.fname,self.line,self.char,err))
+            print(self.getCurrent())
             raise "Parser Error"
         if warninglevel == 1:
             print("%s %.3i::%.2i Warning: %s"%(self.fname,self.line,self.char,err))
@@ -191,6 +205,7 @@ class Scanner:
         if character == '\n':
             self.line += 1
             self.char = 0
+            self.tabs = 0
             return character
         if character == '\t':
             return character
